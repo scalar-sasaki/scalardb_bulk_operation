@@ -31,6 +31,12 @@ curl -OL https://github.com/scalar-labs/scalardb/releases/download/v3.17.1/scala
 docker-compose up -d
 ```
 
+Step4  これで動作確認
+
+```shell
+curl -X POST "http://localhost:8080/api/users/bulk?count=100"
+curl -X GET "http://localhost:8080/api/users/bulk"
+```
 
 # それぞれの繊維先！
 ```puml
