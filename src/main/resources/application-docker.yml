@@ -1,0 +1,3 @@
+spring:
+  datasource:
+    url: jdbc:scalardb:?scalar.db.sql.connection_mode=cluster&scalar.db.sql.cluster_mode.contact_points=indirect:scalardb-cluster&scalar.db.sql.default_namespace_name=test

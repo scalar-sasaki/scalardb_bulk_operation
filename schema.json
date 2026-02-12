@@ -1,0 +1,14 @@
+{
+  "test.users": {
+    "transaction": true,
+    "partition-key": ["id"],
+    "columns": {
+      "id": "TEXT",
+      "name": "TEXT",
+      "email": "TEXT",
+      "address": "TEXT",
+      "nationality_code": "TEXT",
+      "hobby": "TEXT"
+    }
+  }
+}

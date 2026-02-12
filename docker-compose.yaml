@@ -1,0 +1,123 @@
+services:
+  postgresql:
+    container_name: "postgresql"
+    image: "postgres:15"
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready || exit 1"]
+      interval: 1s
+      timeout: 10s
+      retries: 60
+      start_period: 30s
+    volumes:
+      - postgresql-data:/var/lib/postgresql
+    networks:
+      - app-network
+
+  schema-loader:
+    image: ghcr.io/scalar-labs/scalardb-schema-loader:3.17.1
+    container_name: schema-loader
+    volumes:
+      - ./scalardb.properties:/scalardb.properties
+      - ./schema.json:/schema.json
+    command: >
+      --config /scalardb.properties
+      --schema-file /schema.json
+      --coordinator
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  scalardb-cluster:
+    image: ghcr.io/scalar-labs/scalardb-cluster-node-byol-premium:3.16.0
+    platform: linux/amd64
+    container_name: scalardb-cluster
+    pull_policy: missing
+    ports:
+      - "60053:60053"
+      - "9080:9080"
+    volumes:
+      - ./scalardb-cluster.properties:/scalardb-cluster/node/scalardb-cluster-node.properties
+    depends_on:
+      schema-loader:
+        condition: service_completed_successfully
+    networks:
+      - app-network
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spring-boot-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - scalardb-cluster
+    networks:
+      - app-network
+    restart: on-failure
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres-exporter
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:postgres@postgresql:5432/postgres?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - app-network
+    restart: unless-stopped
+
+volumes:
+  postgresql-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  app-network:
+    driver: bridge
