@@ -38,7 +38,14 @@ curl -X POST "http://localhost:8080/api/users/bulk?count=100"
 curl -X GET "http://localhost:8080/api/users/bulk"
 ```
 
-# それぞれの繊維先！
+Step5 postgresの中に入る
+```shell
+docker-compose exec postgresql psql -U postgres
+docker exec -it postgresql psql -U postgres
+postgres=# select count(*) from test.users;
+```
+
+# それぞれの遷移先！
 ```puml
   ┌────────────┬───────────────────────┬──────────────────┐
   │  サービス  │          URL          │     認証情報     │
